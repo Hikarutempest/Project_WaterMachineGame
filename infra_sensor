@@ -1,0 +1,26 @@
+const int Sinfra = 2;
+const int Sinfra2 = 3;
+
+void setup() {
+  Serial.begin(9600);
+  pinMode(Sinfra, INPUT);
+  pinMode(Sinfra2, INPUT);
+}
+
+void loop() {
+  int result = digitalRead(Sinfra);
+  int result2 = digitalRead(Sinfra2);
+  if ( result == LOW){
+    Serial.println("Exist");
+  }
+  if (result == HIGH){
+    Serial.println("Not Exist");
+  }
+  if ( result2 == LOW){
+    Serial.println("Exist");
+  }
+  if (result2 == HIGH){
+    Serial.println("Not Exist");
+  }
+delay(250);
+}
