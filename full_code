@@ -1,0 +1,163 @@
+#include <EEPROM.h>           
+#include <Wire.h>              
+#include <LiquidCrystal_I2C.h>
+#include <Servo.h>
+
+Servo myservo;
+// Pin sensor untuk gerak nya 
+const int Sinfra1 = 2;
+const int Sinfra2 = 3;
+const int Sinfra3 = 4;
+const int Sinfra4 = 5;
+const int Sinfra5 = 6;
+const int Sinfra6 = 7;
+const int Sinfra7 = 8;
+const int buzzerPin = 9;  
+const int buttonPin = 10;
+const int RELAY = 11;
+int pos = 0;
+
+// Poin untuk setiap sensor
+int points[] = {10, 20, 30, 40, 50, 60, 70, 80};  
+int totalPoints = 0;  
+
+// Membuat objek LCD (alamat I2C biasanya 0x27)
+LiquidCrystal_I2C lcd(0x27, 16, 4);
+
+void setup() {
+  Serial.begin(9600);
+  myservo.attach(12); // buat servonya
+  // Inisiasi pin untuk sensor infrared
+  pinMode(Sinfra1, INPUT);
+  pinMode(Sinfra2, INPUT);
+  pinMode(Sinfra3, INPUT);
+  pinMode(Sinfra4, INPUT);
+  pinMode(Sinfra5, INPUT);
+  pinMode(Sinfra6, INPUT);
+  pinMode(Sinfra7, INPUT);
+  pinMode(RELAY, OUTPUT);
+  pinMode(servo, OUTPUT);
+
+  // Inisiasi pin untuk buzzer
+  pinMode(buzzerPin, OUTPUT);
+
+  // Inisiasi pin untuk button
+  pinMode(buttonPin, INPUT_PULLUP);
+
+  // Inisiasi untuk LCD
+  lcd.begin(16, 4);
+  lcd.backlight();  
+  lcd.print("Tekan tombol untuk");
+  lcd.setCursor(0, 1);
+  lcd.print("memulai permainan");
+
+  // Inisiasi nilai point yang tersimpan sebelumnya (opsional)
+  totalPoints = EEPROM.read(0);  
+  Serial.print("Poin Sebelumnya: ");
+  Serial.println(totalPoints);
+}
+
+void loop() {
+  // Memulai permainan dengan menekan tombol
+  if (digitalRead(buttonPin) == LOW) { 
+    startGame(); 
+  }
+}
+
+// Fungsi untuk memulai permainan
+void startGame() {
+  lcd.clear();
+  lcd.print("Permainan Dimulai!");
+  delay(2000);
+
+  for (pos = 0; pos <= 180; pos += 1) {
+    myservo.write(pos)
+  }
+
+  int newPoints = 0;
+  unsigned long startMillis = millis(); // untuk durasi waktu permainan disesuaikan dengan flow rate
+  unsigned long endMillis = startMillis + 60000; // anggap durasi 60 detik (belum fix)
+
+  // Mengulang setiap detik untuk memperbarui LCD
+  while (millis() < endMillis) {
+    // Memeriksa setiap sensor dan menambahkan poin jika ada objek yang terdeteksi
+    newPoints += checkSensor(Sinfra1, 1, points[0]);
+    newPoints += checkSensor(Sinfra2, 2, points[1]);
+    newPoints += checkSensor(Sinfra3, 3, points[2]);
+    newPoints += checkSensor(Sinfra4, 4, points[3]);
+    newPoints += checkSensor(Sinfra5, 5, points[4]);
+    newPoints += checkSensor(Sinfra6, 6, points[5]);
+    newPoints += checkSensor(Sinfra7, 7, points[6]);
+    
+    // Menambahkan poin baru ke total poin
+    totalPoints += newPoints;
+    
+    // Menyimpan total poin ke EEPROM
+    EEPROM.write(0, totalPoints);
+
+    // Menampilkan informasi di LCD
+    lcd.setCursor(0, 1);
+    lcd.print("Waktu: ");
+    int remainingTime = (endMillis - millis()) / 1000; // timer
+    lcd.print(remainingTime);
+    lcd.print(" detik");
+
+    lcd.setCursor(0, 2);
+    lcd.print("Poin: ");
+    lcd.print(totalPoints);
+    delay(1000);  // Delay 1 second to update the display
+
+    // Reset newPoints untuk perhitungan selanjutnya
+    newPoints = 0;
+  }
+
+  // Setelah 60 detik, tampilkan pesan selesai dan total poin
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Waktu habis!");
+  lcd.setCursor(0, 1);
+  lcd.print("Poin terkumpul: ");
+  lcd.print(totalPoints);
+
+  // Tunggu beberapa detik sebelum melanjutkan ke tahap akhir
+  delay(5000);  // Tampilkan hasil selama 5 detik
+  lcd.clear();
+
+  // Tahap akhir setelah permainan selesai
+  lcd.setCursor(0, 0);
+  lcd.print("Taruh botol minum di tempat...");
+  delay(2000); 
+  
+  // Edit code untuk relay ketika game selesai relay menyala sesuai poin conversion
+  digitalWrite(RELAY, LOW);             
+  delay(2000);                          
+
+  digitalWrite(RELAY, HIGH);          // Turn off the relay
+  Serial.println("Light OFF");
+  
+  // Sebagai contoh, kita akan mulai kembali setelah tahap akhir
+  lcd.clear();
+  lcd.print("Permainan Dimulai");
+  delay(2000);  // Menunggu 2 detik sebelum memulai kembali
+}
+
+// Fungsi untuk memeriksa status sensor dan menambahkan poin jika objek terdeteksi
+int checkSensor(int pin, int sensorNumber, int sensorPoints) {
+  int result = digitalRead(pin);
+  if (result == LOW) {  // Deteksi objek (LOW)
+    Serial.print("Sensor ");
+    Serial.print(sensorNumber);
+    Serial.print(": Exist (Poin: ");
+    Serial.print(sensorPoints);
+    Serial.println(")");
+    
+    // Mengaktifkan buzzer (beep)
+    tone(buzzerPin, 1000, 200); // Bunyi beep dengan frekuensi 1000 Hz selama 200 ms
+    return sensorPoints;
+  } else {
+    Serial.print("Sensor ");
+    Serial.print(sensorNumber);
+    Serial.println(": Not Exist");
+    return 0;
+  }
+}
